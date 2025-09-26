@@ -5,13 +5,27 @@ const wss = new WebSocketServer({ port: 8080 });
 interface User {
     socket: WebSocket;
     room: string | null;
+    username: string | null;
 }
 
 let allSockets: User[] = [];
 
+function broadcastToRoom(room: string, message: any) {
+    for (const user of allSockets) {
+        if (user.room === room && user.socket.readyState === WebSocket.OPEN) {
+            user.socket.send(JSON.stringify(message));
+        }
+    }
+}
+
+function getUserCount(room: string) {
+    return allSockets.filter((x) => x.room === room).length;
+}
+
 wss.on('connection', (socket) => {
 
-    let currentUserRoom: string | null = null;
+    let currentUserRoom: string = "";
+    let username: string | null = null;
 
     socket.on('message', (message) => {
         try {
@@ -19,45 +33,44 @@ wss.on('connection', (socket) => {
 
             if (parsedMessage.type === 'join') {
                 currentUserRoom = parsedMessage.payload.roomId;
+                username = parsedMessage.payload.username || "Anonymous";
 
                 // Remove duplicates socket
                 allSockets = allSockets.filter((x) => x.socket !== socket);
 
                 allSockets.push({
                     socket,
-                    room: currentUserRoom
+                    room: currentUserRoom,
+                    username
                 });
 
                 socket.send(
                     JSON.stringify({
                         type: "system",
-                        message: `✅ Joined room ${currentUserRoom}`
+                        message: `✅ Welcome ${username}, you joined room ${currentUserRoom}`,
+                        users: getUserCount(currentUserRoom)
                     })
                 );
+
+                // notify others
+                broadcastToRoom(currentUserRoom, {
+                    type: "system",
+                    message: `😎 ${username} joined the room `,
+                    users: getUserCount(currentUserRoom)
+                });
             }
 
-            if (parsedMessage.type === 'chat' && currentUserRoom) {
+            if (parsedMessage.type === 'chat' && currentUserRoom && username) {
                 // const currentUserRoom = allSockets.find(x => x.socket === socket)?.room;
                 const msg = {
                     type: "chat",
                     room: currentUserRoom,
+                    user: username,
                     message: parsedMessage.payload.message,
                     timestamp: Date.now().toString()
-                }
+                };
 
-                // const totalUsers = allSockets.find((x) => x.room === currentUserRoom);
-
-                for (const user of allSockets) {
-                    if (user.room === currentUserRoom && user.socket.readyState === WebSocket.OPEN) {
-                        user.socket.send(JSON.stringify(msg));
-                    }
-                }
-
-                // for (let i = 0; i < allSockets.length; i++) {
-                //     if (allSockets[i]?.room === currentUserRoom) {
-                //         allSockets[i]?.socket.send(parsedMessage.payload.message);
-                //     }
-                // }
+                broadcastToRoom(currentUserRoom, msg);
             }
         }
         catch (error) {
@@ -66,9 +79,17 @@ wss.on('connection', (socket) => {
     });
 
     socket.on('close', () => {
-        allSockets = allSockets.filter((x) => x.socket !== socket);
-        if (currentUserRoom) {
-            console.log(`User left room ${currentUserRoom}`);
+
+        if (currentUserRoom && username) {
+            allSockets = allSockets.filter((x) => x.socket !== socket);
+
+            broadcastToRoom(currentUserRoom, {
+                type: "system",
+                message: `🚪 ${username} has left the room`,
+                users: getUserCount(currentUserRoom)
+            })
+
+            console.log(`User ${username} left room ${currentUserRoom}`);
         }
     });
 });
