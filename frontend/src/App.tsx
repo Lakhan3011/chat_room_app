@@ -69,6 +69,27 @@ function App() {
       <div className="bg-purple-700 p-4 text-white font-extralight flex justify-between">
         <span>ChatRoom App</span>
         <span>{status}</span>
+        {
+          joined && (
+            <button
+              onClick={() => {
+                wsRef.current?.close();
+                wsRef.current = null;
+
+                setJoined(false);
+
+                setMessages([]);
+                setUsername('');
+                setRoomId('');
+
+                setStatus('Disconnected ❌')
+              }}
+              className="bg-red-600 text-white px-3 py-1 rounded ml-4"
+            >
+              Disconnect
+            </button>
+          )
+        }
       </div>
 
       {/* Controls */}
@@ -80,7 +101,7 @@ function App() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Enter Username"
-          //disabled={joined}
+            disabled={joined}
           />
 
           <input
@@ -89,7 +110,7 @@ function App() {
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
             placeholder="Enter Room ID"
-          //disabled={joined}
+            disabled={joined}
           />
         </div>
         <div>
@@ -109,7 +130,8 @@ function App() {
               setRoomId('');
             }
             }
-            className="bg-purple-600 text-white p-2 rounded"
+            disabled={joined}
+            className={`bg-purple-600 text-white p-2 rounded ${joined ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           >
             Join Room
           </button>
