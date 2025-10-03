@@ -10,7 +10,6 @@ interface User {
 
 const rooms = new Map<string, Set<User>>();
 
-let allSockets: User[] = [];
 
 function joinRoom(roomId: string, user: User) {
     if (!rooms.has(roomId)) {
@@ -82,7 +81,6 @@ wss.on('connection', (socket) => {
             }
 
             if (parsedMessage.type === 'chat' && currentUserRoom && currentUser) {
-                // const currentUserRoom = allSockets.find(x => x.socket === socket)?.room;
                 const msg = {
                     type: "chat",
                     room: currentUserRoom,
